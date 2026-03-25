@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'store',
 ]
 
 MIDDLEWARE = [
@@ -107,6 +108,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+AUTH_USER_MODEL = 'store.User'
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
