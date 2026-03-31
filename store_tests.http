@@ -1,0 +1,135 @@
+### Переменные
+@baseUrl = http://127.0.0.1:8000/api/v1
+@contentType = application/json
+
+# 1. РЕГИСТРАЦИЯ
+
+### Регистрация нового пользователя - успешный сценарий
+POST {{baseUrl}}/register/
+Content-Type: {{contentType}}
+
+{
+    "email": "kindstar@yandex.ru",
+    "password": "test123456",
+    "first_name": "Анастасия",
+    "last_name": "Беляева"
+}
+
+### Регистрация - пользователь уже существует (должна быть ошибка)
+POST {{baseUrl}}/register/
+Content-Type: {{contentType}}
+
+{
+    "email": "kindstar@yandex.ru",
+    "password": "test123456",
+    "first_name": "Анастасия",
+    "last_name": "Беляева"
+}
+
+### Регистрация - неверный email (должна быть ошибка)
+POST {{baseUrl}}/register/
+Content-Type: {{contentType}}
+
+{
+    "email": "not-an-email",
+    "password": "test123456",
+    "first_name": "Иван",
+    "last_name": "Петров"
+}
+
+### Регистрация - без пароля (должна быть ошибка)
+POST {{baseUrl}}/register/
+Content-Type: {{contentType}}
+
+{
+    "email": "test2@example.com",
+    "first_name": "Иван",
+    "last_name": "Петров"
+}
+
+
+# 2. ЛОГИН
+
+
+### Вход - успешный сценарий (после успешной регистрации)
+POST {{baseUrl}}/login/
+Content-Type: {{contentType}}
+
+{
+    "email": "kindstar@yandex.ru",
+    "password": "test123456"
+}
+
+### Вход - неверный пароль (должна быть ошибка)
+POST {{baseUrl}}/login/
+Content-Type: {{contentType}}
+
+{
+    "email": "kindstar@yandex.ru",
+    "password": "wrongpassword"
+}
+
+### Вход - пользователь не существует (должна быть ошибка)
+POST {{baseUrl}}/login/
+Content-Type: {{contentType}}
+
+{
+    "email": "nonexistent@example.com",
+    "password": "anypassword"
+}
+
+### Вход - неверный формат email (должна быть ошибка)
+POST {{baseUrl}}/login/
+Content-Type: {{contentType}}
+
+{
+    "email": "not-an-email",
+    "password": "test123456"
+}
+
+
+@authToken = 7b7a10fc35b41fb214a9397c7be24f457dc7501b
+
+# 3. ПОЛУЧЕНИЯ СПИСКА ТОВАРОВ И ФИЛЬТРАЦИЯ
+
+
+### Все товары (без фильтров)
+GET {{baseUrl}}/products/
+
+### Фильтр по категории (внутренние id из базы)
+# Смартфоны = 1
+GET {{baseUrl}}/products/?category=1
+
+### Аксессуары = 2
+GET {{baseUrl}}/products/?category=2
+
+### Flash-накопители = 3
+GET {{baseUrl}}/products/?category=3
+
+### Телевизоры = 4
+GET {{baseUrl}}/products/?category=4
+
+### Фильтр по магазину (внутренний id)
+# Связной = 1
+GET {{baseUrl}}/products/?shop=1
+
+### Фильтр по минимальной цене
+GET {{baseUrl}}/products/?price_min=70000
+
+### Фильтр по максимальной цене
+GET {{baseUrl}}/products/?price_max=50000
+
+### Фильтр по диапазону цен
+GET {{baseUrl}}/products/?price_min=50000&price_max=100000
+
+### Поиск по названию
+GET {{baseUrl}}/products/?search=iPhone
+
+### Поиск по названию (кириллица)
+GET {{baseUrl}}/products/?search=Смартфон
+
+### Комбинация фильтров: категория (Смартфоны) + цена + поиск
+GET {{baseUrl}}/products/?category=1&price_min=60000&search=iPhone
+
+### Комбинация: магазин + цена
+GET {{baseUrl}}/products/?shop=1&price_max=70000
