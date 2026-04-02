@@ -217,3 +217,29 @@ class ConfirmEmailToken(models.Model):
 
     def __str__(self):
         return "Password reset token for user {user}".format(user=self.user)
+
+
+class Cart(models.Model):
+    user = models.OneToOneField(User, verbose_name='Покупатель', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(verbose_name='Дата создания', auto_now_add=True)
+    updated_at = models.DateTimeField(verbose_name='Дата обновления', auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Корзина'
+        # verbose_name_plural = 'Корзины'
+
+    def __str__(self):
+        return str(self.user)
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart, verbose_name='Корзина', on_delete=models.CASCADE)
+    product_info = models.ForeignKey(ProductInfo, verbose_name='Товар', on_delete=models.CASCADE)
+    updated_at = models.DateTimeField(verbose_name='Дата обновления', auto_now=True)
+    quantity = models.PositiveIntegerField(verbose_name='Количество')
+
+    class Meta:
+        verbose_name = 'Товар'
+        verbose_name_plural = 'Товары'
+        constraints = [
+            models.UniqueConstraint(fields=['product_info', 'cart'], name='unique_product_cart')
+    ]
