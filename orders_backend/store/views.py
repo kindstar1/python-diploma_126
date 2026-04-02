@@ -19,6 +19,7 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+# Эндпоинт на регистрацию пользователя
 
 class RegistrationView(generics.CreateAPIView):
     permission_classes = [AllowAny]
@@ -34,6 +35,7 @@ class RegistrationView(generics.CreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
+# Эндпоинт по логину по почту
 
 class EmailLoginView(ObtainAuthToken):
     # Кастомный класс для логина по почте
@@ -61,6 +63,7 @@ class EmailLoginView(ObtainAuthToken):
             }
         )
 
+# Эндпоинт по просмотру товаров
 
 class ProductListView(generics.ListAPIView):
     """
@@ -75,6 +78,9 @@ class ProductListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     filterset_class = ProductInfoFilter
 
+# Эндпоинты по управлению корзиной: просмотр, добавление позиций в корзину, удаление, редактирование
+
+# просмотр корзины
 
 class CartView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -94,6 +100,7 @@ class CartView(generics.GenericAPIView):
             return Response({"massage": "Ваша корзина пуста"})
         return Response(serializer.data)
 
+# добавление товаров в корззину
 
 class CartAddView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
