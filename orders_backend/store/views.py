@@ -3,17 +3,12 @@ from django.shortcuts import render
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
-from store.serializers import (
-    RegistrationSerializer,
-    ProductInfoSerializer,
-    CartSerializer,
-    CartProductSerializer,
-)
+from store.serializers import (RegistrationSerializer,ProductInfoSerializer,CartSerializer,ContactSerializer, OrderSerializer)
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.permissions import AllowAny
-from store.models import ProductInfo, Cart, CartItem
+from store.models import ProductInfo, Cart, CartItem, Contact, Order, OrderItem
 from store.filters import ProductInfoFilter
-
+from rest_framework.exceptions import ValidationError
 
 from django.contrib.auth import get_user_model
 
@@ -100,7 +95,7 @@ class CartView(generics.GenericAPIView):
             return Response({"massage": "Ваша корзина пуста"})
         return Response(serializer.data)
 
-# добавление товаров в корззину
+# добавление товаров в корзину
 
 class CartAddView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -135,3 +130,120 @@ class CartAddView(generics.GenericAPIView):
 
         serializer = CartSerializer(cart)
         return Response(serializer.data)
+
+# удаление товаров из корзины
+
+class CartItemDeleteView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = CartSerializer
+    
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+
+        id_item = kwargs.get('pk')
+        
+        try:
+            item = CartItem.objects.get(id=id_item, cart__user=user)
+        except CartItem.DoesNotExist:
+            return Response({"error": "Такого товара нет в корзине"}, status=404)
+
+        cart = item.cart
+        item.delete()
+
+        serializer = CartSerializer(cart)
+        
+        if cart.cartitem_set.count() == 0:
+            return Response({"massage": "Ваша корзина пуста"})
+        return Response(serializer.data)
+
+# обеовлние товаров в корзине
+
+class CartItemUpdateView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = CartSerializer
+
+    def patch(self, request, *args, **kwargs):
+        user = request.user
+
+        id_item = kwargs.get('pk')
+        
+        try:
+            item = CartItem.objects.get(id=id_item, cart__user=user)
+        except CartItem.DoesNotExist:
+            return Response({"error": "Такого товара нет в корзине"}, status=404)
+
+
+        quantity = request.data.get('quantity')
+        
+        if quantity > item.product_info.quantity:
+            return Response({"error": "К сожалению, товар закончился"}, status=409)
+        
+        
+        item.quantity = quantity
+        item.save()
+
+        cart = item.cart
+
+        serializer = CartSerializer(cart)
+        return Response(serializer.data)
+    
+# Эндпоинты по управлению контактными данными
+
+# просмотр и создание контакта
+
+class ContactView(generics.ListCreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ContactSerializer
+
+    def get_queryset(self):
+        return Contact.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class ContactDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ContactSerializer
+
+    def get_queryset(self):
+        return Contact.objects.filter(user=self.request.user)
+    
+# Эндпоинты по управлению заказами
+
+# Создание заказа
+
+class OrderCreateView(generics.CreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = OrderSerializer
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        contact_id = self.request.data.get('contact_id')
+
+        contact = Contact.objects.get(id=contact_id, user=user)
+        cart = Cart.objects.get(user=user)
+        cart_items = cart.cartitem_set.all()
+
+        if cart.cartitem_set.count() == 0:
+            raise ValidationError({"message": "Ваша корзина пуста"})
+        
+        order = serializer.save(user=user, status='new', contact=contact)
+        
+        for item in cart_items:
+            OrderItem.objects.create(
+                order=order,
+                position=item.product_info,
+                quantity=item.quantity,
+                price=item.product_info.price)
+        
+        cart_items.delete()
+
+
+class OrderListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = OrderSerializer
+
+    def get_queryset(self):
+        order = Order.objects.filter(user=self.request.user)
+        return order
+

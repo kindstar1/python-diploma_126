@@ -133,3 +133,103 @@ GET {{baseUrl}}/products/?category=1&price_min=60000&search=iPhone
 
 ### Комбинация: магазин + цена
 GET {{baseUrl}}/products/?shop=1&price_max=70000
+
+# 3. УПРАВЛЕНИЕ КОРЗИНОЙ
+
+### Добавить товар в корзину
+POST {{baseUrl}}/cart/add
+Authorization: Token {{authToken}}
+Content-Type: application/json
+
+{
+    "product_info_id": 1,
+    "quantity": 2
+}
+
+### Посмотреть корзину
+GET {{baseUrl}}/cart/
+Authorization: Token {{authToken}}
+
+
+### Изменение количества 
+PATCH {{baseUrl}}/cart/update/1/
+Authorization: Token {{authToken}}
+Content-Type: application/json
+
+{
+    "quantity": 5
+}
+
+### Удаление позиции 
+DELETE {{baseUrl}}/cart/1/
+Authorization: Token {{authToken}}
+
+# УПРАВЛЕНИЕ КОНАКТАМИ
+
+### Создание контакта
+POST {{baseUrl}}/contacts/
+Authorization: Token {{authToken}}
+Content-Type: application/json
+
+{
+    "type_contact": "phone",
+    "value": "+7 999 123-45-67"
+}
+
+### Получить список контактов 
+GET {{baseUrl}}/contacts/
+Authorization: Token {{authToken}}
+
+
+### Создать адрес (POST)
+POST {{baseUrl}}/contacts/
+Authorization: Token {{authToken}}
+Content-Type: application/json
+
+{
+    "type_contact": "address",
+    "value": "Москва, ул. Тверская, д. 1"
+}
+
+### Создать второй телефон (должна быть ошибка 400)
+POST {{baseUrl}}/contacts/
+Authorization: Token {{authToken}}
+Content-Type: application/json
+
+{
+    "type_contact": "phone",
+    "value": "+7 999 444-55-66"
+}
+
+### Получить один контакт по id (GET)
+GET {{baseUrl}}/contacts/1/
+Authorization: Token {{authToken}}
+
+### Обновить контакт (PATCH)
+PATCH {{baseUrl}}/contacts/1/
+Authorization: Token {{authToken}}
+Content-Type: application/json
+
+{
+    "value": "+7 999 999-99-99"
+}
+
+### Удалить контакт (DELETE)
+DELETE {{baseUrl}}/contacts/1/
+Authorization: Token {{authToken}}
+
+# УПРАВЛЕНИЕ ЗАКАЗАМИ
+ 
+
+### Список заказов
+GET {{baseUrl}}/orders/
+Authorization: Token {{authToken}}
+
+### Создать заказ
+POST {{baseUrl}}/orders/create/
+Authorization: Token {{authToken}}
+Content-Type: application/json
+
+{
+    "contact_id": 1
+}
