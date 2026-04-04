@@ -135,3 +135,14 @@ class OrderSerializer(serializers.ModelSerializer):
         for i in obj.orderitem_set.all():
             total_sum += i.price * i.quantity
         return total_sum
+    
+class OrderStatusSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Order
+        fields = ['status']
+
+    def validate_status(self, value):
+        if value not in dict(Order.STATUS_CHOICES):
+            raise serializers.ValidationError("Недопустимый статус")
+        return value

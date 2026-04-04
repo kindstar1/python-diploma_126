@@ -3,16 +3,28 @@ from django.shortcuts import render
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
-from store.serializers import (RegistrationSerializer,ProductInfoSerializer,CartSerializer,ContactSerializer, OrderSerializer)
+from store.serializers import (RegistrationSerializer,ProductInfoSerializer,CartSerializer,ContactSerializer, OrderSerializer, OrderStatusSerializer)
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.permissions import AllowAny
-from store.models import ProductInfo, Cart, CartItem, Contact, Order, OrderItem
+from store.models import ProductInfo, Cart, CartItem, Contact, Order, OrderItem, ConfirmEmailToken
 from store.filters import ProductInfoFilter
 from rest_framework.exceptions import ValidationError
+from django.core.mail import send_mail
+from django.conf import settings
+from django.urls import reverse
+from rest_framework.views import APIView
 
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
+
+# рачет суммы заказа для отправки письма 
+
+def calculate_order_total(order):
+    total = 0
+    for item in order.orderitem_set.all():
+        total += item.price * item.quantity
+    return total
 
 # Эндпоинт на регистрацию пользователя
 
@@ -24,6 +36,16 @@ class RegistrationView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+
+        email_token = ConfirmEmailToken.objects.create(user=user)
+        confirm_url = request.build_absolute_uri(reverse('confirm-email') + f'?token={email_token.key}')
+        send_mail(
+            subject='Подтверждение регистрации',
+            message=f'Для подтверждения email перейдите по ссылке: {confirm_url}',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
         token, created = Token.objects.get_or_create(user=user)
         return Response(
             {"token": token.key, "user": user.id, "email": user.email},
@@ -57,6 +79,27 @@ class EmailLoginView(ObtainAuthToken):
                 "last_name": user.last_name,
             }
         )
+class ConfirmEmailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        token_key = request.query_params.get('token')
+        
+        if not token_key:
+            return Response({"error": "Токен не предоставлен"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            token = ConfirmEmailToken.objects.get(key=token_key)
+        except ConfirmEmailToken.DoesNotExist:
+            return Response({"error": "Неверный или истекший токен"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = token.user
+        user.is_active = True
+        user.save()
+        
+        token.delete()
+        
+        return Response({"message": "Email успешно подтвержден"}, status=status.HTTP_200_OK)
 
 # Эндпоинт по просмотру товаров
 
@@ -72,6 +115,13 @@ class ProductListView(generics.ListAPIView):
     serializer_class = ProductInfoSerializer
     permission_classes = [AllowAny]
     filterset_class = ProductInfoFilter
+
+class ProductDetailView(generics.RetrieveAPIView):
+    queryset = ProductInfo.objects.select_related("product", "shop").prefetch_related(
+        "productparameter_set__parameter"
+    )
+    serializer_class = ProductInfoSerializer
+    permission_classes = [AllowAny]
 
 # Эндпоинты по управлению корзиной: просмотр, добавление позиций в корзину, удаление, редактирование
 
@@ -237,8 +287,18 @@ class OrderCreateView(generics.CreateAPIView):
                 price=item.product_info.price)
         
         cart_items.delete()
+        
+        total_sum = calculate_order_total(order)
+        
+        send_mail(
+            subject=f'Заказ №{order.id} подтвержден',
+            message=f'Ваш заказ №{order.id} успешно создан. Сумма: {total_sum} руб.',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+)
 
-
+# Просмотр заказов
 class OrderListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = OrderSerializer
@@ -247,3 +307,33 @@ class OrderListView(generics.ListAPIView):
         order = Order.objects.filter(user=self.request.user)
         return order
 
+# Просмотр конкретного заказа
+class OrderDetailView(generics.RetrieveAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = OrderSerializer
+    
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user)
+
+# Изменение статусов поставиком
+
+class OrderStatusUpdateView(generics.UpdateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = OrderStatusSerializer
+    
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user)
+    
+    def update(self, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+
+        order = self.get_object()
+
+        if not request.user.is_supplier:
+            return Response({"error": "Доступ только для поставщиков"}, status=403)
+        has_supplier_items = order.orderitem_set.filter(product_info__shop__user=request.user).exists()
+
+        if not has_supplier_items:
+            return Response({"error": "В этом заказе нет ваших товаров"}, status=403)
+                
+        return super().update(request, *args, **kwargs)

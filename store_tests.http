@@ -9,10 +9,10 @@ POST {{baseUrl}}/register/
 Content-Type: {{contentType}}
 
 {
-    "email": "kindstar@yandex.ru",
-    "password": "test123456",
-    "first_name": "Анастасия",
-    "last_name": "Беляева"
+    "email": "ansts.beliaeva@gmail.com",
+    "password": "test12345678",
+    "first_name": "Аглая",
+    "last_name": "Тарасова"
 }
 
 ### Регистрация - пользователь уже существует (должна быть ошибка)
@@ -56,8 +56,8 @@ POST {{baseUrl}}/login/
 Content-Type: {{contentType}}
 
 {
-    "email": "kindstar@yandex.ru",
-    "password": "test123456"
+    "email": "ansts.beliaeva@gmail.com",
+    "password": "test12345678"
 }
 
 ### Вход - неверный пароль (должна быть ошибка)
@@ -95,6 +95,9 @@ Content-Type: {{contentType}}
 
 ### Все товары (без фильтров)
 GET {{baseUrl}}/products/
+
+### Товар по ID (Спецификация товара)
+GET {{baseUrl}}/products/1/
 
 ### Фильтр по категории (внутренние id из базы)
 # Смартфоны = 1
@@ -231,5 +234,19 @@ Authorization: Token {{authToken}}
 Content-Type: application/json
 
 {
-    "contact_id": 1
+    "contact_id": 2
+}
+
+### Получить список заказа по id
+GET {{baseUrl}}/orders/1/
+Authorization: Token {{authToken}}
+
+
+### Редактировать статус заказа
+PATCH {{baseUrl}}/orders/1/status/
+Authorization: Token {{authToken}}
+Content-Type: application/json
+
+{
+    "status": "confirmed"
 }
