@@ -109,8 +109,8 @@ class ContactSerializer(serializers.ModelSerializer):
         fields = ["id", "type_contact", "value"]
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source="product_info.product.name", read_only=True)
-    shop = serializers.CharField(source="product_info.shop.name", read_only=True)
+    name = serializers.CharField(source="position.product.name", read_only=True)
+    shop = serializers.CharField(source="position.shop.name", read_only=True)
     amount = serializers.SerializerMethodField()
 
     class Meta:

@@ -1,3 +1,5 @@
+import logging
+
 from django.shortcuts import render
 
 from rest_framework import generics, status, permissions
@@ -17,6 +19,7 @@ from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
+logger = logging.getLogger('store.views')
 
 # рачет суммы заказа для отправки письма 
 
@@ -47,6 +50,7 @@ class RegistrationView(generics.CreateAPIView):
             fail_silently=False,
         )
         token, created = Token.objects.get_or_create(user=user)
+        logger.info('Регистрация: user_id=%s email=%s', user.id, user.email)
         return Response(
             {"token": token.key, "user": user.id, "email": user.email},
             status=status.HTTP_201_CREATED,
@@ -69,7 +73,7 @@ class EmailLoginView(ObtainAuthToken):
             return Response({"error": "Неверный email или пароль"}, status=400)
 
         token, created = Token.objects.get_or_create(user=user)
-
+        logger.info('Вход: user_id=%s', user.id)
         return Response(
             {
                 "token": token.key,
@@ -79,6 +83,8 @@ class EmailLoginView(ObtainAuthToken):
                 "last_name": user.last_name,
             }
         )
+
+
 class ConfirmEmailView(APIView):
     permission_classes = [AllowAny]
 
@@ -98,7 +104,7 @@ class ConfirmEmailView(APIView):
         user.save()
         
         token.delete()
-        
+        logger.info('Подтверждение email: user_id=%s', user.id)
         return Response({"message": "Email успешно подтвержден"}, status=status.HTTP_200_OK)
 
 # Эндпоинт по просмотру товаров
@@ -179,6 +185,12 @@ class CartAddView(generics.GenericAPIView):
             cart_item.save()
 
         serializer = CartSerializer(cart)
+        logger.info(
+            'Корзина: user_id=%s product_info_id=%s qty=%s',
+            user.id,
+            product_info_id,
+            cart_item.quantity,
+        )
         return Response(serializer.data)
 
 # удаление товаров из корзины
@@ -287,9 +299,10 @@ class OrderCreateView(generics.CreateAPIView):
                 price=item.product_info.price)
         
         cart_items.delete()
-        
+
         total_sum = calculate_order_total(order)
-        
+        logger.info('Заказ создан: order_id=%s user_id=%s sum=%s', order.id, user.id, total_sum)
+
         send_mail(
             subject=f'Заказ №{order.id} подтвержден',
             message=f'Ваш заказ №{order.id} успешно создан. Сумма: {total_sum} руб.',
@@ -331,9 +344,17 @@ class OrderStatusUpdateView(generics.UpdateAPIView):
 
         if not request.user.is_supplier:
             return Response({"error": "Доступ только для поставщиков"}, status=403)
-        has_supplier_items = order.orderitem_set.filter(product_info__shop__user=request.user).exists()
+        has_supplier_items = order.orderitem_set.filter(position__shop__user=request.user).exists()
 
         if not has_supplier_items:
             return Response({"error": "В этом заказе нет ваших товаров"}, status=403)
-                
-        return super().update(request, *args, **kwargs)
+
+        response = super().update(request, *args, **kwargs)
+        if getattr(response, 'status_code', 500) < 400:
+            logger.info(
+                'Статус заказа: order_id=%s supplier_user_id=%s new_status=%s',
+                order.id,
+                request.user.id,
+                request.data.get('status', ''),
+            )
+        return response
