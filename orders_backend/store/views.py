@@ -310,6 +310,16 @@ class OrderCreateView(generics.CreateAPIView):
             recipient_list=[user.email],
             fail_silently=False,
 )
+        admin_email = get_user_model().objects.filter(is_staff=True).values_list('email', flat=True)
+
+        if admin_email:
+            send_mail(
+                subject=f'Новый заказ №{order.id}',
+                message=f'Поступил новый заказ №{order.id} от {user.email} на сумму {total_sum} руб.',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=list(admin_email),
+                fail_silently=False,
+            )
 
 # Просмотр заказов
 class OrderListView(generics.ListAPIView):
